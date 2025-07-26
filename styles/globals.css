@@ -1,0 +1,144 @@
+/* styles/globals.css */
+
+/* Solana wallet-adapter UI */
+@import '@solana/wallet-adapter-react-ui/styles.css';
+
+/* Pixel-font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Reset */
+html, body {
+  margin: 0; padding: 0; min-height: 100%;
+  font-family: 'Press Start 2P', monospace;
+  color: #111;
+}
+
+/* Pixelige horizontale gradient */
+body {
+  background-color: #9945FF;
+  background-image: linear-gradient(
+    #9945FF 15%,
+    #14F195 90%
+  );
+  background-size: 100%;
+  background-position: center;
+  background-repeat: repeat-x;
+  background-attachment: fixed;
+  image-rendering: pixelated;
+}
+
+/* Pixel font voor form/knoppen */
+p, button, input, select, textarea {
+  font-family: 'Press Start 2P', monospace;
+  line-height: 1.2;
+}
+
+/* Hover alleen voor .menu-btn */
+.menu-btn {
+  transition: background 0.2s;
+}
+.menu-btn:hover {
+  background: #14F195 !important;
+}
+
+/* GEEN hover voor Buy & Clear */
+.no-hover-btn:hover {
+  /* niks */
+}
+
+/* Clear-disabled styling */
+.clear-btn:disabled {
+  background: #888 !important;
+  cursor: not-allowed !important;
+}
+
+/* ---------------------------------- */
+/* Algemeen Modal-styling             */
+/* ---------------------------------- */
+
+/* overlay: full-screen donkere achtergrond */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* het witte pop-up paneel */
+.modal-content {
+  position: relative;
+  background: #fff;
+  border: 2px solid #9945FF;
+  border-radius: 8px;
+  max-width: 90%;
+  width: 800px;
+  max-height: 90vh;         /* nooit hoger dan 90% van scherm */
+  overflow-y: auto;         /* interne verticale scroll */
+  padding-top: 1.5rem;      /* ruimte laten voor de close knop */
+  padding: 1.5rem 1rem 1rem; /* top ruimte voor close-knop */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  font-family: 'Press Start 2P', monospace;
+  color: #111;
+}
+
+/* de X-knop rechtsboven */
+.modal-close-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.6rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #9945FF;
+}
+
+/* body-container binnen modal (voeg inhoud hier in) */
+.modal-body {
+  margin-top: 0.5rem;
+}
+
+/* === MOBIEL LAYOUT FIXES === */
+@media (max-width: 768px) {
+  /* 1. Horizontale scroll voor hele pagina */
+  .page-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page-inner {
+    width: 1020px; /* Zelfde breedte als canvas */
+  }
+
+  /* 2. Horizontale scroll voor menu */
+  .menu-button-row {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .menu-button-row > * {
+    flex: 0 0 auto;
+  }
+
+  /* 3. Canvas consistent scrollbaar */
+  .canvas-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .canvas-inner {
+    width: 1020px;
+  }
+
+  /* 4. Fix voor sticky header */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+  }
+}
