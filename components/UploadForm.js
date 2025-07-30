@@ -24,7 +24,9 @@ export default function UploadForm({
   onShowInstructions
 }) {
   const { publicKey, sendTransaction } = useWallet();
-  const connection = new Connection('https://api.devnet.solana.com');
+ // const connection = new Connection('https://api.mainnet-beta.solana.com');
+  const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL);
+
   const treasury = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_ADDRESS);
 
   const [image, setImage] = useState(null);
@@ -102,7 +104,7 @@ export default function UploadForm({
 
     setLoading(true);
     try {
-      const totalUsd = selectedBlocks.length * 100;
+      const totalUsd = selectedBlocks.length * 1;
       const totalSol = totalUsd / solPrice;
       const lamports = Math.round(totalSol * LAMPORTS_PER_SOL);
 
@@ -287,9 +289,9 @@ export default function UploadForm({
         <p style={{ marginTop: '0.5rem', fontSize: '12px' }}>
           Price to pay:{' '}
           <strong>
-            {(selectedBlocks.length * 100 / solPrice).toFixed(4)} SOL
+            {(selectedBlocks.length * 1 / solPrice).toFixed(4)} SOL
           </strong>{' '}
-          (~${(selectedBlocks.length * 100).toLocaleString()} USD)
+          (~${(selectedBlocks.length * 1).toLocaleString()} USD)
         </p>
       )}
 
