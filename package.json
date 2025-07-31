@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "postbuild": "next-sitemap"
   },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.27",
@@ -16,6 +17,7 @@
     "@supabase/supabase-js": "^2.50.5",
     "axios": "^1.10.0",
     "next": "^14.1.4",
+    "next-sitemap": "^4.2.3",
     "nodemailer": "^7.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
