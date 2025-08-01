@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Host
-Host: https://jouwdomein.nl
+Host: https://themilliondollarsolpage.com
 
 # Sitemaps
-Sitemap: https://jouwdomein.nl/sitemap.xml
+Sitemap: https://themilliondollarsolpage.com/sitemap.xml
