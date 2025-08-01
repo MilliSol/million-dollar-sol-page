@@ -73,7 +73,7 @@ export default function Home() {
   };
 
   // Dé datum en tijd van de “go live”
-  const launchDate = '2025-08-01T05:50:00Z';
+  const launchDate = '2025-08-08T18:00:00Z';
 
   return (
     <>

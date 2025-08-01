@@ -58,10 +58,10 @@ export default function LaunchCountdown({ launchDate, onLaunch }) {
         padding: '2rem',
       }}
     >
-      <h2 style={{ margin: '0 0 1rem', fontSize: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>
         Launching Soon!
       </h2>
-      <div style={{ display: 'flex', gap: '1rem', fontSize: '1.25rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem' }}>
         <div>
           <div style={{ fontSize: '2rem' }}>{String(days).padStart(2, '0')}</div>
           <div>Days</div>
