@@ -72,7 +72,7 @@ export default function InstructionsModal({ onClose }) {
           Uploading an image with another size and/or aspect ratio may distort the image on our canvas.          
         </p>
 
-        <h3>2. Irregular shapes</h3>
+        <h3>2. Irregular shapes (all blocks have to be connected)</h3>
         <p>Your image spans the full bounding box but only shows on purchased blocks as shown below:</p>
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px' }}>
@@ -91,12 +91,12 @@ export default function InstructionsModal({ onClose }) {
         <ul>
           <li>.png/.jpg/.gif (animated GIFs will loop)</li>
           <li>Max size: 5 MB</li>
-          <li>For the best result, juse an editor to crop/resize your image</li>
+          <li>For the best result, use an editor to crop/resize your image.</li>
         </ul>
 
         <h3>4. Public visibility</h3>
         <p>
-          Your upload is public (within seconds) on the canvas and on-chain. We advise you to not include personal info.
+          Your upload is public on the canvas and on-chain (within seconds). We advise you to not include personal info.
         </p>
       </div>
     </div>
