@@ -99,7 +99,7 @@ export default function LaunchCountdown({ launchDate, onLaunch }) {
           X
         </a>
         <a
-          href="https://t.me/MilliondollarSolpage"
+          href="https://x.com/Solpagee"
           target="_blank"
           rel="noopener noreferrer"
           style={{
