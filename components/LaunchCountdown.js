@@ -83,7 +83,7 @@ export default function LaunchCountdown({ launchDate, onLaunch }) {
       {/* Extra buttons */}
       <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
         <a
-          href="https://x.com/milliondolSOL"
+          href="https://x.com/Solpagee"
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -99,7 +99,7 @@ export default function LaunchCountdown({ launchDate, onLaunch }) {
           X
         </a>
         <a
-          href="https://x.com/Solpagee"
+          href="https://t.co/WjaOXU3z8I"
           target="_blank"
           rel="noopener noreferrer"
           style={{
