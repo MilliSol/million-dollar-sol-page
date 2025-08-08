@@ -194,7 +194,7 @@ export default function Home() {
                   style={{ display: 'flex', gap: '0.5rem' }}
                 >
                   <a
-                    href="https://x.com/milliondolSOL"
+                    href="https://x.com/solpagee"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="menu-btn"
