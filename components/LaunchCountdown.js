@@ -59,62 +59,8 @@ export default function LaunchCountdown({ launchDate, onLaunch }) {
       }}
     >
       <h2 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>
-        Launching Soon!
+        Canvas Loading...
       </h2>
-      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem' }}>
-        <div>
-          <div style={{ fontSize: '2rem' }}>{String(days).padStart(2, '0')}</div>
-          <div>Days</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '2rem' }}>{String(hours).padStart(2, '0')}</div>
-          <div>Hours</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '2rem' }}>{String(minutes).padStart(2, '0')}</div>
-          <div>Minutes</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '2rem' }}>{String(seconds).padStart(2, '0')}</div>
-          <div>Seconds</div>
-        </div>
-      </div>
-
-      {/* Extra buttons */}
-      <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-        <a
-          href="https://x.com/Solpagee"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#9945FF',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-          }}
-        >
-          X
-        </a>
-        <a
-          href="https://t.co/WjaOXU3z8I"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#9945FF',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-          }}
-        >
-          Telegram
-        </a>
-      </div>
     </div>
   );
 }

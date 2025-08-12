@@ -120,7 +120,7 @@ export default function Home() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '0.5rem',
+                  marginBottom: '0.2rem',
                 }}
               >
                 <h1
@@ -140,12 +140,12 @@ export default function Home() {
               <p
                 style={{
                   margin: '0 0 1rem',
-                  color: '#e0e0e0',
-                  fontSize: '0.85rem',
+                  color: '#d8d8d8ff',
+                  fontSize: '0.91rem',
                   textAlign: 'left',
                 }}
               >
-                Your Brand, Your Space. Internet History, $1 Per Pixel.
+                Your Brand, Your Space. $1 Per Pixel, 10x10 blocks.
               </p>
 
               {/* Buy + Teller */}
