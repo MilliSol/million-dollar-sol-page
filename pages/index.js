@@ -139,13 +139,23 @@ export default function Home() {
               {/* Ondertitel */}
               <p
                 style={{
-                  margin: '0 0 1rem',
+                  margin: '0 0 0.3rem',
                   color: '#d8d8d8ff',
                   fontSize: '0.91rem',
                   textAlign: 'left',
                 }}
               >
                 Your Brand, Your Space. $1 Per Pixel, 10x10 blocks.
+              </p>
+                            <p
+                style={{
+                  margin: '0 0 0.3rem',
+                  color: '#ffffffff',
+                  fontSize: '0.5rem',
+                  textAlign: 'left',
+                }}
+              >
+                $SOLPAGE - CA: E99SqUkMfXx8ev6qwKeBNBC6635WXXH1AUsLu6YQpump
               </p>
 
               {/* Buy + Teller */}
