@@ -22,7 +22,7 @@ export default function TimelineModal({ onClose }) {
     },
     {
       date: 'August 27, 2025',
-      title: <a href="public/whitepapersolpage.pdf" target="_blank" rel="noopener noreferrer">Whitepaper available</a>,
+      title: <a href="whitepapersolpage.pdf" target="_blank" rel="noopener noreferrer">Whitepaper available</a>,
     },
         {
       date: 'Coming Soon',
