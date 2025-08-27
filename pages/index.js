@@ -233,7 +233,7 @@ export default function Home() {
                     className="menu-btn"
                     style={{ ...buttonBase, background: '#9945FF' }}
                   >
-                    Timeline
+                    Whitepaper
                   </button>
                   <button
                     onClick={() => setShowTerms(true)}

@@ -9,20 +9,28 @@ export default function TimelineModal({ onClose }) {
       title: 'The start of an idea',
     },
     {
-      date: 'Now',
+      date: 'August 8, 2025',
       title: 'Building and launching the site',
     },
     {
       date: 'August 26, 2025',
       title: 'Launching our own token $SolPage',
     },
+        {
+      date: 'August 26, 2025',
+      title: 'First blocks sold!!',
+    },
     {
+      date: 'August 27, 2025',
+      title: <a href="public/whitepapersolpage.pdf" target="_blank" rel="noopener noreferrer">Whitepaper available</a>,
+    },
+        {
       date: 'Coming Soon',
       title: 'New feature: replace image and info on your blocks',
     },
     {
       date: 'When sold out',
-      title: 'Special feature unlock!',
+      title: 'New feature: a marketplace to buy and sell blocks',
     },
   ];
 
