@@ -104,7 +104,7 @@ export default function UploadForm({
 
     setLoading(true);
     try {
-      const totalUsd = selectedBlocks.length * 50;
+      const totalUsd = selectedBlocks.length * 100;
       const totalSol = totalUsd / solPrice;
       const lamports = Math.round(totalSol * LAMPORTS_PER_SOL);
 
@@ -289,9 +289,9 @@ export default function UploadForm({
         <p style={{ marginTop: '0.5rem', fontSize: '12px' }}>
           Price to pay:{' '}
           <strong>
-            {(selectedBlocks.length * 50 / solPrice).toFixed(4)} SOL
+            {(selectedBlocks.length * 100 / solPrice).toFixed(4)} SOL
           </strong>{' '}
-          (~${(selectedBlocks.length * 50).toLocaleString()} USD)
+          (~${(selectedBlocks.length * 100).toLocaleString()} USD)
         </p>
       )}
 
