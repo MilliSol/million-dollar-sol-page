@@ -60,7 +60,7 @@ export default function Home() {
 
   const connected     = useMemo(() => isConnected(selectedBlocks), [selectedBlocks]);
   const selectedCount = selectedBlocks.length;
-  const usdAmount     = selectedCount * 100;
+  const usdAmount     = selectedCount * 50;
   const bandWidthPx   = 100 * 10 + 20; // = 1020px
 
   const buttonBase = {
