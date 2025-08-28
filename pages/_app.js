@@ -1,45 +1,57 @@
 // pages/_app.js
 import Head from 'next/head';
 import '../styles/globals.css';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { clusterApiUrl } from '@solana/web3.js';
 
 require('@solana/wallet-adapter-react-ui/styles.css');
 
 function MyApp({ Component, pageProps }) {
-  // — Solana wallet/network setup
-  const network  = WalletAdapterNetwork.Testnet;           // switch to MainnetBeta when live
-  const endpoint = clusterApiUrl(network);
-  const wallets  = [new PhantomWalletAdapter()];
+  const endpoint =
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    clusterApiUrl(WalletAdapterNetwork.Mainnet);
+
+  const wallets = [new PhantomWalletAdapter()];
 
   return (
     <>
       <Head>
         {/* Primary SEO */}
         <title>Million Dollar SOL Page | Your Brand, Your Space</title>
-        <meta name="description" content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."/>
-        <meta name="keywords"    content="Solana, pixel art, blockchain, buy pixels, million dollar page"/>
-        <meta name="author"      content="The Million Dollar Sol Page"/>
-        <meta name="viewport"    content="width=device-width, initial-scale=1"/>
+        <meta
+          name="description"
+          content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."
+        />
+        <meta name="keywords" content="Solana, pixel art, blockchain, buy pixels, million dollar page" />
+        <meta name="author" content="The Million Dollar Sol Page" />
+
+        {/* Viewport (must be here or in a page, not in _document) */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
 
         {/* Open Graph */}
-        <meta property="og:title"       content="Million Dollar SOL Page"/>
-        <meta property="og:description" content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."/>
-        <meta property="og:image"       content="http://themilliondollarsolpage.com/og-image.png"/>
-        <meta property="og:url"         content="http://themilliondollarsolpage.com"/>
-        <meta property="og:type"        content="website"/>
+        <meta property="og:title" content="Million Dollar SOL Page" />
+        <meta
+          property="og:description"
+          content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."
+        />
+        <meta property="og:image" content="https://themilliondollarsolpage.com/og-image.png" />
+        <meta property="og:url" content="https://themilliondollarsolpage.com" />
+        <meta property="og:type" content="website" />
 
         {/* Twitter Card */}
-        <meta name="twitter:card"        content="summary_large_image"/>
-        <meta name="twitter:title"       content="Million Dollar SOL Page"/>
-        <meta name="twitter:description" content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."/>
-        <meta name="twitter:image"       content="http://themilliondollarsolpage.com/og-image.png"/>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Million Dollar SOL Page" />
+        <meta
+          name="twitter:description"
+          content="Buy your own pixels on Solana—$1 per pixel. Build your brand, your space, your place in internet history."
+        />
+        <meta name="twitter:image" content="https://themilliondollarsolpage.com/og-image.png" />
 
         {/* Canonical URL */}
-        <link rel="canonical" href="http://themilliondollarsolpage.com"/>
+        <link rel="canonical" href="https://themilliondollarsolpage.com" />
 
         {/* JSON-LD structured data */}
         <script
@@ -49,10 +61,10 @@ function MyApp({ Component, pageProps }) {
               "@context": "https://schema.org",
               "@type": "WebSite",
               name: "Million Dollar SOL Page",
-              url: "http://themilliondollarsolpage.com",
+              url: "https://themilliondollarsolpage.com",
               potentialAction: {
                 "@type": "SearchAction",
-                target: "http://themilliondollarsolpage.com/?q={search_term_string}",
+                target: "https://themilliondollarsolpage.com/?q={search_term_string}",
                 "query-input": "required name=search_term_string"
               }
             })

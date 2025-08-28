@@ -5,18 +5,19 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Zorg dat de site altijd schaalt naar 1020px breed (of wat jouw canvas breedte is) */}
-        <meta name="viewport" content="width=1020, initial-scale=1" />
-
+        {/* Favicon(s) */}
         <link rel="icon" href="/favicon.png" type="image/png" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/@solana/wallet-adapter-react-ui/styles.css"
-        />
+        <link rel="apple-touch-icon" href="/favicon-192.png" />
+
+        {/* Preconnect for Google Fonts */}
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+
+        {/* Wallet adapter CSS is loaded in _app (require), but keeping this won't harm if you prefer link */}
+        {/* <link rel="stylesheet" href="https://unpkg.com/@solana/wallet-adapter-react-ui/styles.css" /> */}
+
+        {/* Theme color (optional) */}
+        <meta name="theme-color" content="#9945FF" />
       </Head>
       <body>
         <Main />

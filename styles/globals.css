@@ -41,11 +41,6 @@ p, button, input, select, textarea {
   background: #14F195 !important;
 }
 
-/* GEEN hover voor Buy & Clear */
-.no-hover-btn:hover {
-  /* niks */
-}
-
 /* Clear-disabled styling */
 .clear-btn:disabled {
   background: #888 !important;
