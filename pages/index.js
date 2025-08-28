@@ -1,5 +1,5 @@
 // pages/index.js
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import LaunchCountdown from '../components/LaunchCountdown';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
@@ -75,6 +75,43 @@ export default function Home() {
   // Dé datum en tijd van de “go live”
   const launchDate = '2025-08-08T18:00:00Z';
 
+  // --- Client-side viewport fix: zet viewport width op bandWidthPx op small screens ---
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+
+    const applyViewport = () => {
+      const w = window.innerWidth || document.documentElement.clientWidth;
+      if (w < bandWidthPx) {
+        // toon het volledige design (bandWidthPx) in 1x op mobiel — browser zal schalen
+        meta.setAttribute('content', `width=${bandWidthPx}`);
+      } else {
+        meta.setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    };
+
+    applyViewport();
+    window.addEventListener('resize', applyViewport);
+    window.addEventListener('orientationchange', applyViewport);
+
+    return () => {
+      window.removeEventListener('resize', applyViewport);
+      window.removeEventListener('orientationchange', applyViewport);
+      // restore default
+      meta.setAttribute('content', 'width=device-width, initial-scale=1');
+    };
+  }, [bandWidthPx]);
+  // --------------------------------------------------------------------------------------
+
+  // Zorg dat pagina automatisch live gaat als datum verstreken is (client-side)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new Date(launchDate).getTime() <= Date.now()) {
+      setHasLaunched(true);
+    }
+  }, [launchDate]);
+
   return (
     <>
       <Head>
@@ -91,7 +128,8 @@ export default function Home() {
 
       {/* Zodra hasLaunched true is, of launchDate gepasseerd, render de site */}
       {hasLaunched && (
-        <div className="page-wrapper">
+        // belangrijk: width en centeren zodat viewport scaling klopt op mobiel
+        <div className="page-wrapper" style={{ width: bandWidthPx, margin: '0 auto' }}>
           <div
             className="page-inner"
             style={{
@@ -147,7 +185,7 @@ export default function Home() {
               >
                 Your Brand, Your Space. $1 Per Pixel, 10x10 blocks.
               </p>
-                            <p
+              <p
                 style={{
                   margin: '0 0 0.3rem',
                   color: '#ffffffff',
