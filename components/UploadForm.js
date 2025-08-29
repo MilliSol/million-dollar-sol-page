@@ -9,12 +9,7 @@ import {
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabaseClient';
 
 export default function UploadForm({
   selectedBlocks,
@@ -24,20 +19,24 @@ export default function UploadForm({
   onShowInstructions
 }) {
   const { publicKey, sendTransaction } = useWallet();
- // const connection = new Connection('https://api.mainnet-beta.solana.com');
   const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL);
-
   const treasury = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_ADDRESS);
 
   const [image, setImage] = useState(null);
   const [link, setLink] = useState('');
-  const [contract, setContract] = useState('');
   const [altText, setAltText] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [understandInstr, setUnderstandInstr] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [solPrice, setSolPrice] = useState(null);
+
+  // Referral state
+  const [referralCode, setReferralCode] = useState('');
+  const [checkingReferral, setCheckingReferral] = useState(false);
+  const [referralValid, setReferralValid] = useState(false);
+  const [referralDiscountPct, setReferralDiscountPct] = useState(0);
+  const [referralMessage, setReferralMessage] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -63,7 +62,7 @@ export default function UploadForm({
     return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   }
 
-  const handleImageUpload = async (file) => {
+  const handleImageUploadToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append(
@@ -75,6 +74,75 @@ export default function UploadForm({
       formData
     );
     return res.data.secure_url;
+  };
+
+  // PRICE HELPERS
+  const pricePerBlockUSD = 100;
+  const blocksCount = selectedBlocks.length;
+  const basePriceUSD = blocksCount * pricePerBlockUSD;
+
+  function getDiscountedUsd() {
+    if (referralValid && referralDiscountPct) {
+      return basePriceUSD * (1 - referralDiscountPct / 100);
+    }
+    return basePriceUSD;
+  }
+
+  function getEstimatedSol() {
+    if (!solPrice) return null;
+    const usd = getDiscountedUsd();
+    const sol = usd / solPrice;
+    return sol;
+  }
+
+  // --- RPC-based referral check (secure) with robust handling + logs
+  const checkReferralCode = async () => {
+    setReferralMessage('');
+    setReferralValid(false);
+    setReferralDiscountPct(0);
+
+    const code = (referralCode || '').toUpperCase().trim();
+    if (!code) {
+      setReferralMessage('Please enter a code.');
+      return;
+    }
+
+    setCheckingReferral(true);
+    try {
+      console.log('Calling RPC check_referral with', code);
+      const { data, error } = await supabase.rpc('check_referral', { p_code: code });
+
+      console.log('RPC response:', { data, error });
+
+      if (error) {
+        // supabase rpc error (e.g. permissions, function not found)
+        console.error('Referral RPC error:', error);
+        setReferralMessage('Error checking code (see console).');
+        setReferralValid(false);
+      } else if (!data || (Array.isArray(data) && data.length === 0)) {
+        // no matching code
+        setReferralMessage('Invalid or inactive referral code.');
+        setReferralValid(false);
+      } else {
+        // supabase-js sometimes returns an array, sometimes object
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row || typeof row.discount_pct === 'undefined') {
+          console.warn('Unexpected RPC row shape:', row);
+          setReferralMessage('Invalid response from server.');
+          setReferralValid(false);
+        } else {
+          setReferralValid(true);
+          setReferralDiscountPct(row.discount_pct);
+          setReferralMessage(`Valid code — ${row.discount_pct}% discount applied.`);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected referral RPC error:', err);
+      setReferralMessage('Unexpected error while checking code (see console).');
+      setReferralValid(false);
+    } finally {
+      setCheckingReferral(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -104,10 +172,14 @@ export default function UploadForm({
 
     setLoading(true);
     try {
-      const totalUsd = selectedBlocks.length * 50;
+      // calculate USD and SOL with discount
+      const totalUsd = getDiscountedUsd();
       const totalSol = totalUsd / solPrice;
+
+      // convert to lamports (integer) to avoid float issues
       const lamports = Math.round(totalSol * LAMPORTS_PER_SOL);
 
+      // create and send transaction
       const tx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -118,23 +190,46 @@ export default function UploadForm({
       const signature = await sendTransaction(tx, connection);
       await connection.confirmTransaction(signature, 'confirmed');
 
-      const imageUrl = await handleImageUpload(image);
+      // upload image to Cloudinary (after payment)
+      const imageUrl = await handleImageUploadToCloudinary(image);
       const bounds = calculateBounds(selectedBlocks);
 
+      // insert into pixels table (includes referral_code)
       const { error: supabaseError } = await supabase
         .from('pixels')
         .insert([{
           image_url: imageUrl,
           link,
-          contract: contract || null,
           alt_text: altText || null,
           selected_blocks: selectedBlocks,
           bounds,
           wallet_address: publicKey.toBase58(),
           price_paid: totalSol,
-          confirmed: true
+          confirmed: true,
+          referral_code: referralValid ? referralCode.toUpperCase() : null
         }]);
+
       if (supabaseError) throw supabaseError;
+
+      // call RPC to increment referral stats (non-blocking)
+      if (referralValid && referralCode) {
+        try {
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            'increment_referral_stats',
+            {
+              ref_code: referralCode.toUpperCase(),
+              blocks_added: selectedBlocks.length
+            }
+          );
+          if (rpcError) {
+            console.error('increment_referral_stats rpc error:', rpcError);
+          } else {
+            console.log('Referral RPC result:', rpcData);
+          }
+        } catch (rpcErr) {
+          console.error('RPC call failed:', rpcErr);
+        }
+      }
 
       onUploadComplete();
     } catch (err) {
@@ -151,16 +246,16 @@ export default function UploadForm({
       onSubmit={handleSubmit}
       style={{
         marginTop: '2rem',
-        maxWidth: '400px',
+        maxWidth: '520px',
         margin: '0 auto',
         padding: '1rem',
         border: '1px solid #ddd',
         borderRadius: '6px',
         backgroundColor: '#fff',
-        fontSize: '12px'
+        fontSize: '13px'
       }}
     >
-      <h4 style={{ margin: '0 0 0.5rem', fontSize: '14px' }}>
+      <h4 style={{ margin: '0 0 0.5rem', fontSize: '15px' }}>
         Upload image and information
       </h4>
 
@@ -175,7 +270,7 @@ export default function UploadForm({
           style={{
             display: 'block',
             marginTop: '0.25rem',
-            fontSize: '12px'
+            fontSize: '13px'
           }}
         />
       </label>
@@ -190,27 +285,10 @@ export default function UploadForm({
           placeholder="https://example.com"
           required
           style={{
-            width: '90%',
-            padding: '0.4rem',
+            width: '95%',
+            padding: '0.45rem',
             marginTop: '0.25rem',
-            fontSize: '12px'
-          }}
-        />
-      </label>
-
-      {/* Contract address */}
-      <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-        Token contract address (optional):
-        <input
-          type="text"
-          value={contract}
-          onChange={(e) => setContract(e.target.value)}
-          placeholder="0xABC123..."
-          style={{
-            width: '90%',
-            padding: '0.4rem',
-            marginTop: '0.25rem',
-            fontSize: '12px'
+            fontSize: '13px'
           }}
         />
       </label>
@@ -224,16 +302,53 @@ export default function UploadForm({
           onChange={(e) => setAltText(e.target.value)}
           placeholder="Short description"
           style={{
-            width: '90%',
-            padding: '0.4rem',
+            width: '95%',
+            padding: '0.45rem',
             marginTop: '0.25rem',
-            fontSize: '12px'
+            fontSize: '13px'
           }}
         />
       </label>
 
+      {/* Referral code manual check (if user pastes someone else's code) */}
+      <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+        Referral code (optional):
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: '0.25rem' }}>
+          <input
+            type="text"
+            value={referralCode}
+            onChange={(e) => {
+              setReferralCode(e.target.value.toUpperCase());
+              setReferralValid(false);
+              setReferralDiscountPct(0);
+              setReferralMessage('');
+            }}
+            placeholder="ABCDE"
+            style={{
+              flex: '1 1 auto',
+              padding: '0.4rem',
+              fontSize: '13px'
+            }}
+          />
+          <button
+            type="button"
+            onClick={checkReferralCode}
+            disabled={checkingReferral}
+          >
+            {checkingReferral ? 'Checking…' : 'Check code'}
+          </button>
+        </div>
+
+        {/* VISIBLE FEEDBACK */}
+        {referralMessage && (
+          <div style={{ marginTop: '0.4rem', color: referralValid ? 'green' : 'red', fontSize: '12px' }}>
+            {referralMessage}
+          </div>
+        )}
+      </label>
+
       {/* Checkbox Uitleg gelezen */}
-      <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '12px', lineHeight: 1.4 }}>
+      <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '13px', lineHeight: 1.4 }}>
         <input
           type="checkbox"
           checked={understandInstr}
@@ -251,7 +366,7 @@ export default function UploadForm({
             color: '#0070f3',
             textDecoration: 'underline',
             cursor: 'pointer',
-            fontSize: '12px'
+            fontSize: '13px'
           }}
         >
           Upload Instructions
@@ -259,7 +374,7 @@ export default function UploadForm({
       </label>
 
       {/* Checkbox Voorwaarden */}
-      <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '12px', lineHeight: 1.4 }}>
+      <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '13px', lineHeight: 1.4 }}>
         <input
           type="checkbox"
           checked={agreeTerms}
@@ -277,7 +392,7 @@ export default function UploadForm({
             color: '#0070f3',
             textDecoration: 'underline',
             cursor: 'pointer',
-            fontSize: '12px'
+            fontSize: '13px'
           }}
         >
           Terms & Conditions
@@ -286,18 +401,18 @@ export default function UploadForm({
 
       {/* Price display */}
       {solPrice && (
-        <p style={{ marginTop: '0.5rem', fontSize: '12px' }}>
+        <p style={{ marginTop: '0.5rem', fontSize: '13px' }}>
           Price to pay:{' '}
           <strong>
-            {(selectedBlocks.length * 50 / solPrice).toFixed(4)} SOL
+            { (getEstimatedSol() !== null ? getEstimatedSol().toFixed(6) : '...') } SOL
           </strong>{' '}
-          (~${(selectedBlocks.length * 50).toLocaleString()} USD)
+          (~${getDiscountedUsd().toLocaleString()} USD)
         </p>
       )}
 
       {/* Errors */}
       {error && (
-        <p style={{ color: 'red', fontSize: '12px' }}>{error}</p>
+        <p style={{ color: 'red', fontSize: '13px' }}>{error}</p>
       )}
 
       {/* Submit */}
@@ -306,8 +421,8 @@ export default function UploadForm({
         disabled={loading || disableSubmit}
         style={{
           marginTop: '1rem',
-          padding: '0.5rem 1rem',
-          fontSize: '12px',
+          padding: '0.6rem 1rem',
+          fontSize: '13px',
           cursor: loading || disableSubmit ? 'not-allowed' : 'pointer'
         }}
       >
