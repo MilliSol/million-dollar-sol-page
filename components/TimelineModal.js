@@ -24,7 +24,11 @@ export default function TimelineModal({ onClose }) {
       date: 'August 27, 2025',
       title: <a href="whitepapersolpage.pdf" target="_blank" rel="noopener noreferrer">Whitepaper available</a>,
     },
-        {
+    {
+      date: 'August 29, 2025',
+      title: 'New feature: Referral codes! Contact us to get one and make money',
+    },
+    {
       date: 'Coming Soon',
       title: 'New feature: replace image and info on your blocks',
     },
