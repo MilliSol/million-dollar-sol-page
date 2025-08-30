@@ -29,7 +29,7 @@ export default function TimelineModal({ onClose }) {
       title: 'New feature: Referral codes! Contact us to get one and make money',
     },
     {
-      date: 'Coming Soon',
+      date: 'Coming Soon Q4',
       title: 'New feature: replace image and info on your blocks',
     },
     {
