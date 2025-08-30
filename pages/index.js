@@ -193,7 +193,7 @@ export default function Home() {
                   textAlign: 'left',
                 }}
               >
-                $SOLPAGE - CA: E99SqUkMfXx8ev6qwKeBNBC6635WXXH1AUsLu6YQpump
+                10 years of ads from just 100$
               </p>
 
               {/* Buy + Teller */}
@@ -239,8 +239,17 @@ export default function Home() {
                 {/* LINKS: horizontaal scrollbaar op mobiel */}
                 <div
                   className="menu-button-row"
-                  style={{ display: 'flex', gap: '0.5rem' }}
+                  style={{ display: 'flex', gap: '0.05rem' }}
                 >
+                  <a
+                    href="https://pump.fun/coin/E99SqUkMfXx8ev6qwKeBNBC6635WXXH1AUsLu6YQpump"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="menu-btn"
+                    style={{ ...buttonBase, background: '#9945FF' }}
+                  >
+                    $SOLPAGE
+                  </a>
                   <a
                     href="https://x.com/solpagee"
                     target="_blank"
