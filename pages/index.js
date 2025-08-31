@@ -251,7 +251,7 @@ export default function Home() {
                     $SOLPAGE
                   </a>
                   <a
-                    href="https://x.com/solpagee"
+                    href="https://x.com/solpagex"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="menu-btn"
