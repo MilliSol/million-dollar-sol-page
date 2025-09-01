@@ -11,6 +11,7 @@ import ContactModal from '../components/ContactModal';
 import TimelineModal from '../components/TimelineModal';
 import TermsModal from '../components/TermsModal';
 import InstructionsModal from '../components/InstructionsModal';
+import { supabase } from '../lib/supabaseClient';
 
 const WalletMultiButton = dynamic(
   () =>
@@ -44,6 +45,36 @@ function isConnected(blocks) {
   return visited.size === blocks.length;
 }
 
+// helper: parse numeric scalar from supabase rpc response (robust)
+function parseRpcNumber(data) {
+  if (data === null || typeof data === 'undefined') return null;
+  if (Array.isArray(data)) {
+    const first = data[0];
+    if (!first) return null;
+    const keys = Object.keys(first);
+    if (keys.length === 1) {
+      return Number(first[keys[0]]);
+    }
+    if ('calculate_price' in first) return Number(first.calculate_price);
+    for (const k of keys) {
+      const v = first[k];
+      if (!isNaN(parseFloat(v))) return Number(v);
+    }
+    return null;
+  } else if (typeof data === 'object') {
+    if ('calculate_price' in data) return Number(data.calculate_price);
+    const keys = Object.keys(data);
+    for (const k of keys) {
+      const v = data[k];
+      if (!isNaN(parseFloat(v))) return Number(v);
+    }
+    return null;
+  } else {
+    const n = Number(data);
+    return isNaN(n) ? null : n;
+  }
+}
+
 export default function Home() {
   const [hasLaunched, setHasLaunched] = useState(false);
 
@@ -60,7 +91,6 @@ export default function Home() {
 
   const connected     = useMemo(() => isConnected(selectedBlocks), [selectedBlocks]);
   const selectedCount = selectedBlocks.length;
-  const usdAmount     = selectedCount * 100;
   const bandWidthPx   = 100 * 10 + 20; // = 1020px
 
   const buttonBase = {
@@ -75,7 +105,7 @@ export default function Home() {
   // Dé datum en tijd van de “go live”
   const launchDate = '2025-08-08T18:00:00Z';
 
-  // --- Client-side viewport fix: zet viewport width op bandWidthPx op small screens ---
+  // --- viewport fix (unchanged) ---
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const meta = document.querySelector('meta[name="viewport"]');
@@ -84,7 +114,6 @@ export default function Home() {
     const applyViewport = () => {
       const w = window.innerWidth || document.documentElement.clientWidth;
       if (w < bandWidthPx) {
-        // toon het volledige design (bandWidthPx) in 1x op mobiel — browser zal schalen
         meta.setAttribute('content', `width=${bandWidthPx}`);
       } else {
         meta.setAttribute('content', 'width=device-width, initial-scale=1');
@@ -98,7 +127,6 @@ export default function Home() {
     return () => {
       window.removeEventListener('resize', applyViewport);
       window.removeEventListener('orientationchange', applyViewport);
-      // restore default
       meta.setAttribute('content', 'width=device-width, initial-scale=1');
     };
   }, [bandWidthPx]);
@@ -111,6 +139,162 @@ export default function Home() {
       setHasLaunched(true);
     }
   }, [launchDate]);
+
+  // --- Pricing states ---
+  const [currentPriceUsd, setCurrentPriceUsd] = useState(null);
+  const [currentPriceLoading, setCurrentPriceLoading] = useState(false);
+  const [currentPriceError, setCurrentPriceError] = useState('');
+
+  const [selectionTotalUsd, setSelectionTotalUsd] = useState(null);
+  const [selectionTotalLoading, setSelectionTotalLoading] = useState(false);
+  const [selectionTotalError, setSelectionTotalError] = useState('');
+
+  // --- Pixels sold (real-time) ---
+  const [totalBlocksSold, setTotalBlocksSold] = useState(0); // blocks
+  const [pixelsLoading, setPixelsLoading] = useState(false);
+  const [pixelsError, setPixelsError] = useState('');
+
+  // Utility currency formatter
+  const usdFmt = (v) => {
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v);
+    } catch {
+      return `$${Number(v).toFixed(2)}`;
+    }
+  };
+
+  // Fetch current single-block price (calculate_price(1))
+  const fetchCurrentPrice = async () => {
+    setCurrentPriceError('');
+    setCurrentPriceUsd(null);
+    setCurrentPriceLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('calculate_price', { p_num_blocks: 1 });
+      if (error) {
+        console.error('calculate_price(1) error', error);
+        setCurrentPriceError('Error fetching current price');
+      } else {
+        const n = parseRpcNumber(data);
+        if (n === null) {
+          console.warn('Could not parse calculate_price(1) response', data);
+          setCurrentPriceError('Unexpected price response');
+        } else {
+          setCurrentPriceUsd(Number(n.toFixed(2)));
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching current price', err);
+      setCurrentPriceError('Unexpected error fetching current price');
+    } finally {
+      setCurrentPriceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrentPrice();
+  }, [refreshFlag]);
+
+  // Fetch selection total price when selectedCount changes
+  const fetchSelectionTotal = async (count) => {
+    setSelectionTotalError('');
+    setSelectionTotalUsd(null);
+
+    if (!count || count <= 0) {
+      setSelectionTotalUsd(0);
+      return;
+    }
+
+    setSelectionTotalLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('calculate_price', { p_num_blocks: count });
+      if (error) {
+        console.error('calculate_price for selection error', error);
+        setSelectionTotalError('Error fetching selection price');
+      } else {
+        const n = parseRpcNumber(data);
+        if (n === null) {
+          console.warn('Could not parse calculate_price response for selection', data);
+          setSelectionTotalError('Unexpected price response');
+        } else {
+          setSelectionTotalUsd(Number(n.toFixed(2)));
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching selection total', err);
+      setSelectionTotalError('Unexpected error fetching selection price');
+    } finally {
+      setSelectionTotalLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSelectionTotal(selectedCount);
+  }, [selectedCount, refreshFlag]);
+
+  // Fetch total sold blocks (robustly via RPC/get_sold_blocks_count)
+  const fetchTotalBlocksSold = async () => {
+    setPixelsError('');
+    setPixelsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_sold_blocks_count');
+      if (error) {
+        console.error('get_sold_blocks_count error', error);
+        setPixelsError('Error fetching sold count');
+      } else {
+        // supabase returns scalar or array — parse robustly
+        const parsed = parseRpcNumber(data);
+        if (parsed === null) {
+          console.warn('Could not parse get_sold_blocks_count result', data);
+          setPixelsError('Unexpected response for sold count');
+        } else {
+          setTotalBlocksSold(Math.max(0, Math.floor(parsed)));
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching sold count', err);
+      setPixelsError('Unexpected error fetching sold count');
+    } finally {
+      setPixelsLoading(false);
+    }
+  };
+
+  // subscribe to realtime changes on pixels table for live updates
+  useEffect(() => {
+    // initial fetch
+    fetchTotalBlocksSold();
+
+    // create channel subscription
+    const channel = supabase
+      .channel('public:pixels_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pixels' },
+        (payload) => {
+          // whenever pixels table changes, refresh sold count and prices
+          console.log('realtime pixels change:', payload.eventType);
+          fetchTotalBlocksSold();
+          // also refresh prices shown
+          setRefreshFlag((f) => !f);
+        }
+      )
+      .subscribe((status) => {
+        console.log('realtime subscription status:', status);
+      });
+
+    return () => {
+      // unsubscribe properly
+      try {
+        channel.unsubscribe();
+      } catch (e) {
+        console.warn('Failed to unsubscribe realtime channel', e);
+      }
+    };
+    // we only want to subscribe once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // computed pixels value (blocks * 100)
+  const pixelsSoldDisplay = totalBlocksSold * 100;
 
   return (
     <>
@@ -126,9 +310,7 @@ export default function Home() {
         />
       )}
 
-      {/* Zodra hasLaunched true is, of launchDate gepasseerd, render de site */}
       {hasLaunched && (
-        // belangrijk: width en centeren zodat viewport scaling klopt op mobiel
         <div className="page-wrapper" style={{ width: bandWidthPx, margin: '0 auto' }}>
           <div
             className="page-inner"
@@ -152,48 +334,81 @@ export default function Home() {
                 zIndex: 100,
               }}
             >
-              {/* Titel & Wallet */}
+              {/* Titel & Wallet (title centered, wallet right) */}
               <div
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.2rem',
+                  position: 'relative',
+                  marginBottom: '0.0rem',
+                  height: '48px', // gives space for centered title and right button
                 }}
               >
                 <h1
                   style={{
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
                     margin: 0,
                     color: '#fff',
-                    fontSize: '2rem',
-                    lineHeight: 1.2,
+                    fontSize: '1.7rem',
+                    lineHeight: 0.8,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Million Dollar SOL Page
                 </h1>
-                <WalletMultiButton className="menu-btn" />
+
+                <div style={{ position: 'absolute', right: 0 }}>
+                  <WalletMultiButton className="menu-btn" />
+                </div>
               </div>
 
               {/* Ondertitel */}
               <p
                 style={{
-                  margin: '0 0 0.3rem',
+                  margin: '0 0 0.2rem',
                   color: '#d8d8d8ff',
-                  fontSize: '0.91rem',
-                  textAlign: 'left',
+                  fontSize: '1rem',
+                  textAlign: 'center',
                 }}
               >
-                Your Brand, Your Space. $1 Per Pixel, 10x10 blocks.
+                Your Brand, Your Space. 
               </p>
+
+              {/* Pixels sold (realtime) */}
               <p
                 style={{
-                  margin: '0 0 0.3rem',
+                  margin: '0 0 0.6rem',
                   color: '#ffffffff',
-                  fontSize: '0.5rem',
-                  textAlign: 'left',
+                  fontSize: '0.7rem',
+                  textAlign: 'center',
                 }}
               >
-                10 years of ads from just 100$
+                {pixelsLoading && 'Loading sold pixels...'}
+                {!pixelsLoading && pixelsError && `Error: ${pixelsError}`}
+                {!pixelsLoading && !pixelsError && (
+                  <>
+                    <strong>{pixelsSoldDisplay.toLocaleString()}</strong> pixels sold
+                  </>
+                )}
+              </p>
+
+              {/* CURRENT PRICE */}
+              <p
+                style={{
+                  margin: '0 0 0.1rem',
+                  color: '#ffffffff',
+                  fontSize: '0.7rem',
+                  textAlign: 'center',
+                }}
+              >
+                {currentPriceLoading && 'Fetching current block price...'}
+                {!currentPriceLoading && currentPriceError && `Error: ${currentPriceError}`}
+                {!currentPriceLoading && !currentPriceError && currentPriceUsd !== null && (
+                  <>
+                    Current block price: <strong>{usdFmt(currentPriceUsd)}</strong>
+                  </>
+                )}
               </p>
 
               {/* Buy + Teller */}
@@ -223,8 +438,14 @@ export default function Home() {
                 >
                   Buy Selection
                 </button>
+
                 <div style={{ color: '#fff', fontSize: '0.7rem' }}>
-                  {selectedCount} blocks = ${usdAmount.toLocaleString()}
+                  {selectedCount} blocks =&nbsp;
+                  {selectionTotalLoading && 'calculating...'}
+                  {!selectionTotalLoading && selectionTotalError && `Error`}
+                  {!selectionTotalLoading && !selectionTotalError && selectionTotalUsd !== null && (
+                    <>{usdFmt(selectionTotalUsd)}</>
+                  )}
                 </div>
               </div>
 
@@ -236,7 +457,7 @@ export default function Home() {
                   alignItems: 'center',
                 }}
               >
-                {/* LINKS: horizontaal scrollbaar op mobiel */}
+                {/* LINKS: horizontaal scrollbaar on mobiel */}
                 <div
                   className="menu-button-row"
                   style={{ display: 'flex', gap: '0.05rem' }}
