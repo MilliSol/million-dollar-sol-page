@@ -22,7 +22,6 @@ export default function UploadForm({
   const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL);
   const treasury = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_ADDRESS);
 
-  // form state
   const [image, setImage] = useState(null);
   const [link, setLink] = useState('');
   const [altText, setAltText] = useState('');
@@ -32,55 +31,49 @@ export default function UploadForm({
   const [error, setError] = useState('');
   const [solPrice, setSolPrice] = useState(null);
 
-  // referral state
+  // Referral state
   const [referralCode, setReferralCode] = useState('');
   const [checkingReferral, setCheckingReferral] = useState(false);
   const [referralValid, setReferralValid] = useState(false);
   const [referralDiscountPct, setReferralDiscountPct] = useState(0);
   const [referralMessage, setReferralMessage] = useState('');
 
-  // pricing state (server)
+  // Pricing: server-calculated USD total (before referral)
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceError, setPriceError] = useState('');
-  const [remoteTotalUsd, setRemoteTotalUsd] = useState(null); // USD total from calculate_price
+  const [remoteTotalUsd, setRemoteTotalUsd] = useState(null); // numeric (USD) returned from calculate_price
 
+  // derived values
   const blocksCount = selectedBlocks.length;
 
-  // Fetch SOL price
+  // Load SOL price once
   useEffect(() => {
-    let cancelled = false;
     (async () => {
       try {
         const res = await axios.get(
           'https://api.coingecko.com/api/v3/simple/price',
           { params: { ids: 'solana', vs_currencies: 'usd' } }
         );
-        if (!cancelled) setSolPrice(res.data.solana.usd);
+        setSolPrice(res.data.solana.usd);
       } catch (err) {
         console.error('Could not fetch SOL price:', err);
       }
     })();
-    return () => { cancelled = true; };
   }, []);
 
-  // When selectedBlocks changes, ask DB for total USD price (calculate_price)
+  // When number of selected blocks changes, fetch price from DB (RPC calculate_price)
   useEffect(() => {
     let mounted = true;
     const fetchPrice = async () => {
       setPriceError('');
       setRemoteTotalUsd(null);
-
       if (!blocksCount || blocksCount <= 0) {
         if (mounted) setRemoteTotalUsd(0);
         return;
       }
-
       setPriceLoading(true);
       try {
-        console.log('Calling RPC calculate_price for', blocksCount, 'blocks');
         const { data, error } = await supabase.rpc('calculate_price', { p_num_blocks: blocksCount });
-
-        console.log('calculate_price RPC returned:', { data, error });
 
         if (error) {
           console.error('calculate_price RPC error:', error);
@@ -89,7 +82,7 @@ export default function UploadForm({
             setRemoteTotalUsd(null);
           }
         } else {
-          // parse supabase result into a number
+          // Parse returned value robustly (supabase may wrap results)
           let value = null;
           if (data === null || typeof data === 'undefined') {
             value = null;
@@ -97,11 +90,16 @@ export default function UploadForm({
             const first = data[0];
             if (first) {
               const keys = Object.keys(first);
-              if (keys.length === 1) value = first[keys[0]];
-              else if ('calculate_price' in first) value = first.calculate_price;
-              else {
+              if (keys.length === 1) {
+                value = first[keys[0]];
+              } else if ('calculate_price' in first) {
+                value = first.calculate_price;
+              } else {
                 for (const k of keys) {
-                  if (!isNaN(parseFloat(first[k]))) { value = first[k]; break; }
+                  if (!isNaN(parseFloat(first[k]))) {
+                    value = first[k];
+                    break;
+                  }
                 }
               }
             }
@@ -117,13 +115,22 @@ export default function UploadForm({
             value = data;
           }
 
-          if (value !== null && value !== undefined && !isNaN(Number(value))) {
-            if (mounted) setRemoteTotalUsd(Number(Number(value).toFixed(2)));
-          } else {
-            console.warn('Unexpected calculate_price response', data);
+          if (value === null || value === undefined) {
+            console.warn('Could not parse calculate_price response', data);
             if (mounted) {
-              setPriceError('Unexpected price response.');
+              setPriceError('Unexpected price response from server.');
               setRemoteTotalUsd(null);
+            }
+          } else {
+            const parsed = Number(value);
+            if (isNaN(parsed)) {
+              console.warn('calculate_price parsed NaN for value', value);
+              if (mounted) {
+                setPriceError('Invalid price value from server.');
+                setRemoteTotalUsd(null);
+              }
+            } else {
+              if (mounted) setRemoteTotalUsd(Number(parsed.toFixed(2)));
             }
           }
         }
@@ -145,15 +152,20 @@ export default function UploadForm({
   function calculateBounds(blocks) {
     const xs = blocks.map((b) => b.col);
     const ys = blocks.map((b) => b.row);
-    const minX = Math.min(...xs), minY = Math.min(...ys);
-    const maxX = Math.max(...xs), maxY = Math.max(...ys);
+    const minX = Math.min(...xs),
+      minY = Math.min(...ys);
+    const maxX = Math.max(...xs),
+      maxY = Math.max(...ys);
     return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   }
 
   const handleImageUploadToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+    formData.append(
+      'upload_preset',
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    );
     const res = await axios.post(
       `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
       formData
@@ -161,7 +173,7 @@ export default function UploadForm({
     return res.data.secure_url;
   };
 
-  // Discounted USD after referral
+  // Discounted USD = remoteTotalUsd * (1 - discount)
   function getDiscountedUsd() {
     const base = remoteTotalUsd ?? 0;
     if (referralValid && referralDiscountPct) {
@@ -170,7 +182,6 @@ export default function UploadForm({
     return Math.round(base * 100) / 100;
   }
 
-  // estimated SOL to pay
   function getEstimatedSol() {
     if (!solPrice) return null;
     const usd = getDiscountedUsd();
@@ -178,7 +189,7 @@ export default function UploadForm({
     return sol;
   }
 
-  // Check referral via RPC
+  // --- RPC-based referral check (secure) with robust handling + logs
   const checkReferralCode = async () => {
     setReferralMessage('');
     setReferralValid(false);
@@ -225,7 +236,6 @@ export default function UploadForm({
     }
   };
 
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -261,14 +271,14 @@ export default function UploadForm({
 
     setLoading(true);
     try {
-      // compute totals (USD from DB, then discounted, then SOL)
+      // compute totals
       const totalUsd = getDiscountedUsd();
       const totalSol = totalUsd / solPrice;
 
-      // convert to lamports
+      // convert to lamports (integer) to avoid float issues
       const lamports = Math.round(totalSol * LAMPORTS_PER_SOL);
 
-      // on-chain transfer
+      // create and send transaction
       const tx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -279,19 +289,20 @@ export default function UploadForm({
       const signature = await sendTransaction(tx, connection);
       await connection.confirmTransaction(signature, 'confirmed');
 
-      // upload image then insert record
+      // upload image to Cloudinary (after payment)
       const imageUrl = await handleImageUploadToCloudinary(image);
       const bounds = calculateBounds(selectedBlocks);
 
-      // insert into pixels (including purchase_blocks)
+      // insert into pixels table (includes referral_code and block counts)
       const insertObj = {
         image_url: imageUrl,
         link,
         alt_text: altText || null,
         selected_blocks: selectedBlocks,
-        purchase_blocks: selectedBlocks.length, // <-- important
         bounds,
         wallet_address: publicKey.toBase58(),
+        blocks_count: selectedBlocks.length,    // <-- ensure NOT NULL column filled
+        purchase_blocks: selectedBlocks.length,  // <-- if you have this column too, keep it in sync
         price_paid: totalSol,
         confirmed: true,
         referral_code: referralValid ? referralCode.toUpperCase() : null
@@ -303,7 +314,7 @@ export default function UploadForm({
 
       if (supabaseError) throw supabaseError;
 
-      // increment referral stats (non-blocking but log)
+      // call RPC to increment referral stats (non-blocking)
       if (referralValid && referralCode) {
         try {
           const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -359,7 +370,11 @@ export default function UploadForm({
           accept="image/*"
           onChange={(e) => setImage(e.target.files[0])}
           required
-          style={{ display: 'block', marginTop: '0.25rem', fontSize: '13px' }}
+          style={{
+            display: 'block',
+            marginTop: '0.25rem',
+            fontSize: '13px'
+          }}
         />
       </label>
 
@@ -372,7 +387,12 @@ export default function UploadForm({
           onChange={(e) => setLink(e.target.value)}
           placeholder="https://example.com"
           required
-          style={{ width: '95%', padding: '0.45rem', marginTop: '0.25rem', fontSize: '13px' }}
+          style={{
+            width: '95%',
+            padding: '0.45rem',
+            marginTop: '0.25rem',
+            fontSize: '13px'
+          }}
         />
       </label>
 
@@ -384,11 +404,16 @@ export default function UploadForm({
           value={altText}
           onChange={(e) => setAltText(e.target.value)}
           placeholder="Short description"
-          style={{ width: '95%', padding: '0.45rem', marginTop: '0.25rem', fontSize: '13px' }}
+          style={{
+            width: '95%',
+            padding: '0.45rem',
+            marginTop: '0.25rem',
+            fontSize: '13px'
+          }}
         />
       </label>
 
-      {/* Referral code */}
+      {/* Referral code manual check (if user pastes someone else's code) */}
       <label style={{ display: 'block', marginBottom: '0.5rem' }}>
         Referral code (optional):
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: '0.25rem' }}>
@@ -402,13 +427,22 @@ export default function UploadForm({
               setReferralMessage('');
             }}
             placeholder="ABCDE"
-            style={{ flex: '1 1 auto', padding: '0.4rem', fontSize: '13px' }}
+            style={{
+              flex: '1 1 auto',
+              padding: '0.4rem',
+              fontSize: '13px'
+            }}
           />
-          <button type="button" onClick={checkReferralCode} disabled={checkingReferral}>
+          <button
+            type="button"
+            onClick={checkReferralCode}
+            disabled={checkingReferral}
+          >
             {checkingReferral ? 'Checking…' : 'Check code'}
           </button>
         </div>
 
+        {/* VISIBLE FEEDBACK */}
         {referralMessage && (
           <div style={{ marginTop: '0.4rem', color: referralValid ? 'green' : 'red', fontSize: '12px' }}>
             {referralMessage}
@@ -416,7 +450,7 @@ export default function UploadForm({
         )}
       </label>
 
-      {/* Understanding */}
+      {/* Checkbox Uitleg gelezen */}
       <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '13px', lineHeight: 1.4 }}>
         <input
           type="checkbox"
@@ -428,13 +462,21 @@ export default function UploadForm({
         <button
           type="button"
           onClick={onShowInstructions}
-          style={{ background: 'none', border: 'none', padding: 0, color: '#0070f3', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            color: '#0070f3',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontSize: '13px'
+          }}
         >
           Upload Instructions
         </button>.
       </label>
 
-      {/* Terms */}
+      {/* Checkbox Voorwaarden */}
       <label style={{ display: 'block', margin: '0.5rem 0', fontSize: '13px', lineHeight: 1.4 }}>
         <input
           type="checkbox"
@@ -446,7 +488,15 @@ export default function UploadForm({
         <button
           type="button"
           onClick={onShowTerms}
-          style={{ background: 'none', border: 'none', padding: 0, color: '#0070f3', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            color: '#0070f3',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontSize: '13px'
+          }}
         >
           Terms & Conditions
         </button>.
@@ -454,19 +504,27 @@ export default function UploadForm({
 
       {/* Price display */}
       {priceLoading && (
-        <p style={{ marginTop: '0.5rem', fontSize: '13px' }}>Calculating price...</p>
+        <p style={{ marginTop: '0.5rem', fontSize: '13px' }}>
+          Calculating price...
+        </p>
       )}
       {!priceLoading && remoteTotalUsd !== null && (
         <p style={{ marginTop: '0.5rem', fontSize: '13px' }}>
           Price to pay:{' '}
-          <strong>{(getEstimatedSol() !== null ? getEstimatedSol().toFixed(6) : '...')} SOL</strong>{' '}
+          <strong>
+            { (getEstimatedSol() !== null ? getEstimatedSol().toFixed(6) : '...') } SOL
+          </strong>{' '}
           (~${getDiscountedUsd().toLocaleString()} USD)
         </p>
       )}
-      {priceError && <p style={{ color: 'red', fontSize: '13px' }}>{priceError}</p>}
+      {priceError && (
+        <p style={{ color: 'red', fontSize: '13px' }}>{priceError}</p>
+      )}
 
       {/* Errors */}
-      {error && <p style={{ color: 'red', fontSize: '13px' }}>{error}</p>}
+      {error && (
+        <p style={{ color: 'red', fontSize: '13px' }}>{error}</p>
+      )}
 
       {/* Submit */}
       <button

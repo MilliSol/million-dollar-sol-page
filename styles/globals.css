@@ -6,12 +6,21 @@
 /* Pixel-font */
 /* @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); */
 
+/* Root variables */
+:root {
+  --header-height: 64px; /* pas hier aan als je header hoogte wil veranderen */
+  --bottom-space: 80px; /* ruimte onderin zodat content zichtbaar blijft */
+}
+
 /* Reset */
 html, body {
   margin: 0; padding: 0; min-height: 100%;
   font-family: 'Press Start 2P', monospace;
   color: #111;
+  -webkit-text-size-adjust: 100%; /* voorkom automatische tekst resizing op mobiel */
+  box-sizing: border-box;
 }
+*, *::before, *::after { box-sizing: inherit; }
 
 /* Pixelige horizontale gradient */
 body {
@@ -31,6 +40,8 @@ body {
 p, button, input, select, textarea {
   font-family: 'Press Start 2P', monospace;
   line-height: 1.2;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Hover alleen voor .menu-btn */
@@ -39,6 +50,11 @@ p, button, input, select, textarea {
 }
 .menu-btn:hover {
   background: #14F195 !important;
+}
+
+/* GEEN hover voor Buy & Clear */
+.no-hover-btn:hover {
+  /* niks */
 }
 
 /* Clear-disabled styling */
@@ -51,7 +67,6 @@ p, button, input, select, textarea {
 /* Algemeen Modal-styling             */
 /* ---------------------------------- */
 
-/* overlay: full-screen donkere achtergrond */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -61,8 +76,6 @@ p, button, input, select, textarea {
   align-items: center;
   z-index: 1000;
 }
-
-/* het witte pop-up paneel */
 .modal-content {
   position: relative;
   background: #fff;
@@ -70,16 +83,14 @@ p, button, input, select, textarea {
   border-radius: 8px;
   max-width: 90%;
   width: 800px;
-  max-height: 90vh;         /* nooit hoger dan 90% van scherm */
-  overflow-y: auto;         /* interne verticale scroll */
-  padding-top: 1.5rem;      /* ruimte laten voor de close knop */
-  padding: 1.5rem 1rem 1rem; /* top ruimte voor close-knop */
+  max-height: 90vh;
+  overflow-y: auto;
+  padding-top: 1.5rem;
+  padding: 1.5rem 1rem 1rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   font-family: 'Press Start 2P', monospace;
   color: #111;
 }
-
-/* de X-knop rechtsboven */
 .modal-close-btn {
   position: absolute;
   top: 0.4rem;
@@ -91,15 +102,10 @@ p, button, input, select, textarea {
   cursor: pointer;
   color: #9945FF;
 }
-
-/* body-container binnen modal (voeg inhoud hier in) */
-.modal-body {
-  margin-top: 0.5rem;
-}
+.modal-body { margin-top: 0.5rem; }
 
 /* === MOBIEL LAYOUT FIXES === */
 @media (max-width: 768px) {
-  /* 1. Horizontale scroll voor hele pagina */
   .page-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -109,7 +115,6 @@ p, button, input, select, textarea {
     width: 1020px; /* Zelfde breedte als canvas */
   }
 
-  /* 2. Horizontale scroll voor menu */
   .menu-button-row {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -119,21 +124,243 @@ p, button, input, select, textarea {
     flex: 0 0 auto;
   }
 
-  /* 3. Canvas consistent scrollbaar */
   .canvas-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .canvas-inner {
-    width: 1020px;
-  }
+  .canvas-inner { width: 1020px; }
 
-  /* 4. Fix voor sticky header */
-  .sticky-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: white;
-  }
+  .sticky-header { position: sticky; top: 0; z-index: 100; background: white; }
+}
+
+/* ------------------------------- */
+/* Header / Sidebar / Bottom - UI  */
+/* ------------------------------- */
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: rgba(153,69,255,0.95);
+  backdrop-filter: blur(6px);
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  padding: 0;
+  transform: translateY(var(--header-translate, 0)) scale(var(--header-scale, 1));
+  transform-origin: top center;
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease, opacity 220ms ease;
+  will-change: transform;
+  pointer-events: auto;
+}
+.site-header.hidden {
+  --header-translate: calc(-1 * var(--header-height));
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* inner container centered to bandWidthPx but header spans viewport */
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+/* left hamburger button */
+.hamburger-btn {
+  color: #fff;
+  font-size: 1.1rem;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+}
+
+/* center area with title and small meta */
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  max-width: calc(100% - 200px);
+}
+
+/* enable pointer events for interactive children inside header-center */
+.header-center * { pointer-events: auto; }
+
+/* title */
+.site-title {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+  padding-top: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* smaller stat line */
+.header-stats {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 8px;
+  color: #fff;
+  opacity: 0.95;
+  margin-bottom: 6px;
+}
+
+.header-stats .stat { color: #fff; }
+.header-stats .stat-sep { opacity: 0.6; }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Make the wallet button visually smaller and fixed px sizes */
+.wallet-btn-small {
+  font-size: 11px !important;
+  padding: 6px 8px !important;
+  height: 30px !important;
+  line-height: 1 !important;
+  min-width: 64px !important;
+}
+
+/* Sidebar styles (overlay and sliding panel) */
+.sidebar-overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0);
+  z-index: 1800;
+  transition: background 180ms ease;
+  pointer-events: none;
+}
+.sidebar-overlay.open {
+  background: rgba(0,0,0,0.45);
+  pointer-events: auto;
+}
+
+/* sliding panel - default hidden (translateX -100%) */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 85%;
+  background: #fff;
+  z-index: 2000; /* high so it overlays everything */
+  box-shadow: 2px 0 18px rgba(0,0,0,0.25);
+  transition: transform 220ms ease;
+  transform: translateX(-100%);
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  box-sizing: border-box;
+  font-family: 'Press Start 2P', monospace;
+  -webkit-overflow-scrolling: touch;
+}
+.sidebar.open { transform: translateX(0); }
+
+/* sidebar content */
+.sidebar-head { display: flex; justify-content: flex-end; }
+.sidebar-close { background: transparent; border: none; font-size: 1.2rem; cursor: pointer; }
+
+.sidebar-nav { margin-top: 12px; display:flex; flex-direction: column; gap: 10px; }
+.menu-link { background: transparent; color: #111; text-align: left; padding: 8px 6px; border: none; font-size: 0.98rem; cursor: pointer; }
+.menu-link:hover { color: #14F195; text-decoration: underline; }
+.sidebar-sep { border: none; height: 1px; background: #ddd; margin: 8px 0; }
+.sidebar-icons { margin-top: 6px; display:flex; gap:10px; }
+.sidebar-icons a { text-decoration: none; color: #111; font-size: 0.95rem; }
+
+/* Bottom fixed multi-segment bar — full width and flush to bottom */
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom, 0);
+  height: 56px;
+  display: flex;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 -6px 18px rgba(0,0,0,0.18);
+  z-index: 1700;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  touch-action: manipulation;
+  transform: translateY(var(--bottom-translate, 0)) scale(var(--bottom-scale, 1));
+}
+
+/* each half */
+.bottom-segment {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  user-select: none;
+  font-family: 'Press Start 2P', monospace;
+}
+
+/* left = dark gray */
+.bottom-left { background: #333; color: #fff; }
+
+/* right = green */
+.bottom-right { background: #14F195; color: #000; }
+
+/* disabled look for right side when invalid */
+.bottom-right.disabled {
+  background: #9db99d;
+  color: #222;
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+/* ensure page content leaves space for bottom bar and header */
+.page-inner {
+  padding-bottom: var(--bottom-space);
+  padding-top: calc(var(--header-height) + 12px); /* <-- belangrijke regel: voorkomt dat canvas achter header verdwijnt */
+}
+
+/* ensure canvas sits below header visually */
+.canvas-wrapper { position: relative; z-index: 1; }
+
+/* small responsive tweaks */
+@media (max-width: 640px) {
+  :root { --header-height: 56px; --bottom-space: 72px; }
+  .site-title { font-size: 18px; }
+  .header-stats { font-size: 10px; }
+  .bottom-bar { height: 52px; }
+  .bottom-segment { font-size: 13px; }
+  .hamburger-btn { font-size: 1.2rem; padding: 8px; }
+  .wallet-btn-small { font-size: 10px !important; padding: 4px 6px !important; height: 28px !important; }
+}
+
+/* Make sure transforms render smoothly on mobile */
+.site-header, .bottom-bar, .sidebar {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }

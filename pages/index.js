@@ -1,5 +1,5 @@
 // pages/index.js
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import LaunchCountdown from '../components/LaunchCountdown';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
@@ -76,6 +76,9 @@ function parseRpcNumber(data) {
 }
 
 export default function Home() {
+  // NOTE: keep CSS :root --header-height in sync (fallback if not found)
+  const HEADER_HEIGHT_FALLBACK = 64;
+
   const [hasLaunched, setHasLaunched] = useState(false);
 
   const { publicKey } = useWallet();
@@ -153,6 +156,19 @@ export default function Home() {
   const [totalBlocksSold, setTotalBlocksSold] = useState(0); // blocks
   const [pixelsLoading, setPixelsLoading] = useState(false);
   const [pixelsError, setPixelsError] = useState('');
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarRef = useRef(null);
+
+  // header / bottom refs for zoom compensation
+  const headerRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  // header visibility for scroll hide/show
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
+  const ticking = useRef(false);
 
   // Utility currency formatter
   const usdFmt = (v) => {
@@ -241,7 +257,6 @@ export default function Home() {
         console.error('get_sold_blocks_count error', error);
         setPixelsError('Error fetching sold count');
       } else {
-        // supabase returns scalar or array — parse robustly
         const parsed = parseRpcNumber(data);
         if (parsed === null) {
           console.warn('Could not parse get_sold_blocks_count result', data);
@@ -296,6 +311,109 @@ export default function Home() {
   // computed pixels value (blocks * 100)
   const pixelsSoldDisplay = totalBlocksSold * 100;
 
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    function handleDocClick(e) {
+      if (!sidebarRef.current) return;
+      if (sidebarOpen && !sidebarRef.current.contains(e.target)) {
+        setSidebarOpen(false);
+      }
+    }
+    if (sidebarOpen) {
+      document.addEventListener('mousedown', handleDocClick);
+      document.addEventListener('touchstart', handleDocClick);
+    } else {
+      document.removeEventListener('mousedown', handleDocClick);
+      document.removeEventListener('touchstart', handleDocClick);
+    }
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, [sidebarOpen]);
+
+  // visualViewport compensation: keep header and bottom visually same size when page zoom changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const vv = window.visualViewport;
+    if (!vv) return; // not supported -> skip compensation
+
+    const applyScale = () => {
+      const scale = vv.scale || 1;
+      // inverse scale to keep header/bottom same visual size
+      const inv = 1 / (scale || 1);
+      if (headerRef.current) {
+        headerRef.current.style.setProperty('--header-scale', String(inv));
+      }
+      if (bottomRef.current) {
+        bottomRef.current.style.setProperty('--bottom-scale', String(inv));
+      }
+    };
+
+    applyScale();
+    vv.addEventListener('resize', applyScale);
+    vv.addEventListener('scroll', applyScale);
+    return () => {
+      try {
+        vv.removeEventListener('resize', applyScale);
+        vv.removeEventListener('scroll', applyScale);
+      } catch (e) {}
+    };
+  }, []);
+
+  // SCROLL -> hide/show header logic (throttled via rAF)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    lastScrollY.current = window.scrollY || 0;
+
+    const THRESHOLD = 8; // px to avoid jitter
+    function onScroll() {
+      if (ticking.current) return;
+      ticking.current = true;
+      window.requestAnimationFrame(() => {
+        const currentY = window.scrollY || 0;
+        const delta = currentY - lastScrollY.current;
+
+        // if near top, always show
+        if (currentY < 40) {
+          setHeaderVisible(true);
+        } else if (sidebarOpen) {
+          // keep header visible when sidebar open
+          setHeaderVisible(true);
+        } else {
+          if (delta > THRESHOLD) {
+            // scrolled down -> hide
+            setHeaderVisible(false);
+          } else if (delta < -THRESHOLD) {
+            // scrolled up -> show
+            setHeaderVisible(true);
+          }
+        }
+
+        lastScrollY.current = currentY;
+        ticking.current = false;
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('touchmove', onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('touchmove', onScroll);
+    };
+  }, [sidebarOpen]);
+
+  // bottom bar helpers
+  const selectionIsValid = connected && selectedCount > 0;
+
+  // header CSS class based on visibility
+  const headerClass = headerVisible ? 'site-header' : 'site-header hidden';
+
+  // inline transform styles for sidebar + overlay (explicit, avoids CSS/hydration mismatch)
+  const sidebarTransform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
+  const overlayStyle = {
+    background: sidebarOpen ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0)',
+    pointerEvents: sidebarOpen ? 'auto' : 'none',
+  };
+
   return (
     <>
       <Head>
@@ -312,231 +430,100 @@ export default function Home() {
 
       {hasLaunched && (
         <div className="page-wrapper" style={{ width: bandWidthPx, margin: '0 auto' }}>
+          {/* STICKY (fixed) HEADER (we keep ref for compensation) */}
+          <header
+            ref={headerRef}
+            className={headerClass}
+            style={{ zIndex: 1600 }}
+          >
+            <div className="header-inner" style={{ width: '100%', maxWidth: bandWidthPx, margin: '0 auto', boxSizing: 'border-box' }}>
+              {/* left: hamburger */}
+              <button
+                className="hamburger-btn"
+                aria-label="Open menu"
+                onClick={() => setSidebarOpen(true)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                ☰
+              </button>
+
+              {/* center: title + small stats */}
+              <div className="header-center">
+                <h1 className="site-title">Million Dollar SOL Page</h1>
+
+                <div className="header-stats" style={{ marginBottom: 6 }}>
+                  {pixelsLoading ? (
+                    <span className="stat">Loading sold pixels...</span>
+                  ) : pixelsError ? (
+                    <span className="stat">Error</span>
+                  ) : (
+                    <span className="stat">{pixelsSoldDisplay.toLocaleString()}/1.000.000 pixels sold</span>
+                  )}
+
+                  <span className="stat-sep">·</span>
+
+                  {currentPriceLoading ? (
+                    <span className="stat">Fetching price...</span>
+                  ) : currentPriceError ? (
+                    <span className="stat">Error</span>
+                  ) : (
+                    <span className="stat">Current block price: {usdFmt(currentPriceUsd)}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* right: wallet (smaller via extra class) */}
+              <div className="header-right">
+                <WalletMultiButton className="menu-btn wallet-btn-small" />
+              </div>
+            </div>
+          </header>
+
+          {/* Sidebar + overlay (overlay clickable to close) */}
+          <div
+            className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+            aria-hidden={!sidebarOpen}
+            onClick={() => setSidebarOpen(false)}
+            style={overlayStyle}
+          />
+          <aside
+            ref={sidebarRef}
+            className={`sidebar ${sidebarOpen ? 'open' : ''}`}
+            aria-hidden={!sidebarOpen}
+            style={{ transform: sidebarTransform }}
+          >
+            <div className="sidebar-head">
+              <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">✕</button>
+            </div>
+
+            <nav className="sidebar-nav">
+              <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowInstructions(true); }}>Instructions</button>
+              <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowTimeline(true); }}>Whitepaper</button>
+              <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowTerms(true); }}>Terms</button>
+              <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowContact(true); }}>Contact</button>
+
+              <hr className="sidebar-sep" />
+
+              <a className="menu-link" href="https://pump.fun/coin/E99SqUkMfXx8ev6qwKeBNBC6635WXXH1AUsLu6YQpump" target="_blank" rel="noreferrer"> $SOLPAGE </a>
+
+              <div className="sidebar-icons">
+                <a href="https://x.com/solpagex" target="_blank" rel="noreferrer" aria-label="X">X</a>
+                <a href="https://t.me/MilliondollarSolpage" target="_blank" rel="noreferrer" aria-label="Telegram">Telegram</a>
+              </div>
+            </nav>
+          </aside>
+
+          {/* page-inner content (centered) — paddingTop handled by CSS var so canvas won't sit under header */}
           <div
             className="page-inner"
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              width: '100%',
+              boxSizing: 'border-box'
             }}
           >
-            {/* STICKY HEADER */}
-            <div
-              className="sticky-header"
-              style={{
-                position: 'sticky',
-                top: 0,
-                width: bandWidthPx,
-                backgroundColor: 'rgba(153,69,255,0.85)',
-                backdropFilter: 'blur(8px)',
-                padding: '1rem',
-                boxSizing: 'border-box',
-                zIndex: 100,
-              }}
-            >
-              {/* Titel & Wallet (title centered, wallet right) */}
-              <div
-                style={{
-                  position: 'relative',
-                  marginBottom: '0.0rem',
-                  height: '48px', // gives space for centered title and right button
-                }}
-              >
-                <h1
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    margin: 0,
-                    color: '#fff',
-                    fontSize: '1.7rem',
-                    lineHeight: 0.8,
-                    textAlign: 'center',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Million Dollar SOL Page
-                </h1>
-
-                <div style={{ position: 'absolute', right: 0 }}>
-                  <WalletMultiButton className="menu-btn" />
-                </div>
-              </div>
-
-              {/* Ondertitel */}
-              <p
-                style={{
-                  margin: '0 0 0.2rem',
-                  color: '#d8d8d8ff',
-                  fontSize: '1rem',
-                  textAlign: 'center',
-                }}
-              >
-                Your Brand, Your Space. 
-              </p>
-
-              {/* Pixels sold (realtime) */}
-              <p
-                style={{
-                  margin: '0 0 0.6rem',
-                  color: '#ffffffff',
-                  fontSize: '0.7rem',
-                  textAlign: 'center',
-                }}
-              >
-                {pixelsLoading && 'Loading sold pixels...'}
-                {!pixelsLoading && pixelsError && `Error: ${pixelsError}`}
-                {!pixelsLoading && !pixelsError && (
-                  <>
-                    <strong>{pixelsSoldDisplay.toLocaleString()}</strong> pixels sold
-                  </>
-                )}
-              </p>
-
-              {/* CURRENT PRICE */}
-              <p
-                style={{
-                  margin: '0 0 0.1rem',
-                  color: '#ffffffff',
-                  fontSize: '0.7rem',
-                  textAlign: 'center',
-                }}
-              >
-                {currentPriceLoading && 'Fetching current block price...'}
-                {!currentPriceLoading && currentPriceError && `Error: ${currentPriceError}`}
-                {!currentPriceLoading && !currentPriceError && currentPriceUsd !== null && (
-                  <>
-                    Current block price: <strong>{usdFmt(currentPriceUsd)}</strong>
-                  </>
-                )}
-              </p>
-
-              {/* Buy + Teller */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-end',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                <button
-                  onClick={() => setShowUpload(true)}
-                  disabled={!connected || selectedCount === 0}
-                  className="no-hover-btn"
-                  style={{
-                    ...buttonBase,
-                    width: '150px',
-                    background:
-                      connected && selectedCount > 0 ? '#14F195' : '#888',
-                    marginBottom: '0.4rem',
-                    cursor:
-                      connected && selectedCount > 0
-                        ? 'pointer'
-                        : 'not-allowed',
-                  }}
-                >
-                  Buy Selection
-                </button>
-
-                <div style={{ color: '#fff', fontSize: '0.7rem' }}>
-                  {selectedCount} blocks =&nbsp;
-                  {selectionTotalLoading && 'calculating...'}
-                  {!selectionTotalLoading && selectionTotalError && `Error`}
-                  {!selectionTotalLoading && !selectionTotalError && selectionTotalUsd !== null && (
-                    <>{usdFmt(selectionTotalUsd)}</>
-                  )}
-                </div>
-              </div>
-
-              {/* Menu-buttons (links) & Clear (rechts) */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                {/* LINKS: horizontaal scrollbaar on mobiel */}
-                <div
-                  className="menu-button-row"
-                  style={{ display: 'flex', gap: '0.05rem' }}
-                >
-                  <a
-                    href="https://pump.fun/coin/E99SqUkMfXx8ev6qwKeBNBC6635WXXH1AUsLu6YQpump"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    $SOLPAGE
-                  </a>
-                  <a
-                    href="https://x.com/solpagex"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    X
-                  </a>
-                  <a
-                    href="https://t.me/MilliondollarSolpage"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    Telegram
-                  </a>
-                  <button
-                    onClick={() => setShowInstructions(true)}
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    Instructions
-                  </button>
-                  <button
-                    onClick={() => setShowTimeline(true)}
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    Whitepaper
-                  </button>
-                  <button
-                    onClick={() => setShowTerms(true)}
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    Terms
-                  </button>
-                  <button
-                    onClick={() => setShowContact(true)}
-                    className="menu-btn"
-                    style={{ ...buttonBase, background: '#9945FF' }}
-                  >
-                    Contact
-                  </button>
-                </div>
-
-                {/* CLEAR SELECTION */}
-                <button
-                  onClick={() => setSelectedBlocks([])}
-                  disabled={selectedCount === 0}
-                  className="no-hover-btn clear-btn"
-                  style={{
-                    ...buttonBase,
-                    width: '150px',
-                    background: selectedCount === 0 ? '#888' : '#555',
-                    cursor:
-                      selectedCount === 0 ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Clear Selection
-                </button>
-              </div>
-            </div>
-
             {/* Success message */}
             {successMessage && (
               <div
@@ -566,6 +553,8 @@ export default function Home() {
                 padding: '10px',
                 background: '#555',
                 boxSizing: 'border-box',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               <div className="canvas-inner">
@@ -578,6 +567,38 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* bottom action bar (fixed full width, flush to bottom) */}
+          {selectedCount > 0 && (
+            <div ref={bottomRef} className="bottom-bar" style={{ zIndex: 1700 }}>
+              <div
+                className="bottom-segment bottom-left"
+                role="button"
+                onClick={() => setSelectedBlocks([])}
+                aria-disabled={false}
+              >
+                Clear Selection
+              </div>
+
+              <div
+                className={`bottom-segment bottom-right ${selectionIsValid ? '' : 'disabled'}`}
+                role="button"
+                onClick={() => {
+                  if (!selectionIsValid) return;
+                  setShowUpload(true);
+                }}
+                aria-disabled={!selectionIsValid}
+              >
+                {selectionTotalLoading ? (
+                  <>Buy Selection (calculating...)</>
+                ) : selectionTotalError ? (
+                  <>Buy Selection (error)</>
+                ) : (
+                  <>Buy Selection ({selectionTotalUsd !== null ? usdFmt(selectionTotalUsd) : '--'})</>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
