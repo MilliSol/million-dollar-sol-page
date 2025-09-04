@@ -12,6 +12,7 @@ import TimelineModal from '../components/TimelineModal';
 import TermsModal from '../components/TermsModal';
 import InstructionsModal from '../components/InstructionsModal';
 import { supabase } from '../lib/supabaseClient';
+import WhyModal from '../components/WhyModal';
 
 const WalletMultiButton = dynamic(
   () =>
@@ -90,6 +91,7 @@ export default function Home() {
   const [showTerms, setShowTerms]               = useState(false);
   const [showTimeline, setShowTimeline]         = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showWhy, setShowWhy]                   = useState(false);
   const [successMessage, setSuccessMessage]     = useState('');
 
   const connected     = useMemo(() => isConnected(selectedBlocks), [selectedBlocks]);
@@ -170,6 +172,9 @@ export default function Home() {
   const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
   const ticking = useRef(false);
 
+  // compact title for small widths / pinch-zoom
+  const [compactTitle, setCompactTitle] = useState(false);
+
   // Utility currency formatter
   const usdFmt = (v) => {
     try {
@@ -178,6 +183,28 @@ export default function Home() {
       return `$${Number(v).toFixed(2)}`;
     }
   };
+
+  // set compactTitle based on viewport width (accounts for pinch-zoom via visualViewport)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const threshold = 420; // px threshold to switch to compact title
+    function applyCompact() {
+      const vv = window.visualViewport;
+      const w = vv ? vv.width : window.innerWidth;
+      setCompactTitle(w <= threshold);
+    }
+    applyCompact();
+    window.addEventListener('resize', applyCompact);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', applyCompact);
+    }
+    return () => {
+      window.removeEventListener('resize', applyCompact);
+      if (window.visualViewport) {
+        try { window.visualViewport.removeEventListener('resize', applyCompact); } catch {}
+      }
+    };
+  }, []);
 
   // Fetch current single-block price (calculate_price(1))
   const fetchCurrentPrice = async () => {
@@ -449,7 +476,9 @@ export default function Home() {
 
               {/* center: title + small stats */}
               <div className="header-center">
-                <h1 className="site-title">Million Dollar SOL Page</h1>
+                <h1 className="site-title">
+                  {compactTitle ? 'SOL Page' : 'Million Dollar SOL Page'}
+                </h1>
 
                 <div className="header-stats" style={{ marginBottom: 6 }}>
                   {pixelsLoading ? (
@@ -474,6 +503,7 @@ export default function Home() {
 
               {/* right: wallet (smaller via extra class) */}
               <div className="header-right">
+                {/* single WalletMultiButton instance; appearance is controlled by CSS on small screens */}
                 <WalletMultiButton className="menu-btn wallet-btn-small" />
               </div>
             </div>
@@ -497,6 +527,7 @@ export default function Home() {
             </div>
 
             <nav className="sidebar-nav">
+              <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowWhy(true); }}>Why buy pixels?</button>
               <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowInstructions(true); }}>Instructions</button>
               <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowTimeline(true); }}>Whitepaper</button>
               <button className="menu-link" onClick={() => { setSidebarOpen(false); setShowTerms(true); }}>Terms</button>
@@ -571,6 +602,8 @@ export default function Home() {
           {/* bottom action bar (fixed full width, flush to bottom) */}
           {selectedCount > 0 && (
             <div ref={bottomRef} className="bottom-bar" style={{ zIndex: 1700 }}>
+              {/* DOM order: Clear first then Buy (desktop: left/right looks normal).
+                  On mobile CSS reorders so Buy appears above Clear (stacked). */}
               <div
                 className="bottom-segment bottom-left"
                 role="button"
@@ -638,6 +671,12 @@ export default function Home() {
       {showContact && (
         <Modal onClose={() => setShowContact(false)}>
           <ContactModal onClose={() => setShowContact(false)} />
+        </Modal>
+      )}
+
+      {showWhy && (
+        <Modal onClose={() => setShowWhy(false)}>
+          <WhyModal onClose={() => setShowWhy(false)} />
         </Modal>
       )}
     </>

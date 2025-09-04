@@ -29,6 +29,10 @@ export default function TimelineModal({ onClose }) {
       title: 'New feature: Referral codes! Contact us to get one and make money',
     },
     {
+      date: 'September 1, 2025 ',
+      title: 'Pricing system: Starting at just $ 30,00 going up $ 0.02 every block sold',
+    },
+    {
       date: 'Coming Soon Q4',
       title: 'New feature: replace image and info on your blocks',
     },

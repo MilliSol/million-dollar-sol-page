@@ -10,6 +10,13 @@
 :root {
   --header-height: 64px; /* pas hier aan als je header hoogte wil veranderen */
   --bottom-space: 80px; /* ruimte onderin zodat content zichtbaar blijft */
+
+  /* reservespace for left/right controls to prevent overlap with centered title */
+  --left-control-width: 56px;   /* hamburger / left area */
+  --right-control-width: 88px;  /* wallet / right area (desktop default) */
+
+  /* site title size (adjusted on mobile below) */
+  --site-title-size: 20px;
 }
 
 /* Reset */
@@ -44,17 +51,12 @@ p, button, input, select, textarea {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Hover alleen voor .menu-btn */
+/* Hover only for .menu-btn */
 .menu-btn {
   transition: background 0.2s;
 }
 .menu-btn:hover {
   background: #14F195 !important;
-}
-
-/* GEEN hover voor Buy & Clear */
-.no-hover-btn:hover {
-  /* niks */
 }
 
 /* Clear-disabled styling */
@@ -181,6 +183,8 @@ p, button, input, select, textarea {
   padding: 6px 10px;
   background: transparent;
   border: none;
+  width: var(--left-control-width);
+  min-width: var(--left-control-width);
 }
 
 /* center area with title and small meta */
@@ -194,7 +198,8 @@ p, button, input, select, textarea {
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  max-width: calc(100% - 200px);
+  /* reserve space left & right to avoid overlap */
+  max-width: calc(100% - var(--left-control-width) - var(--right-control-width));
 }
 
 /* enable pointer events for interactive children inside header-center */
@@ -204,7 +209,7 @@ p, button, input, select, textarea {
 .site-title {
   margin: 0;
   color: #fff;
-  font-size: 20px;
+  font-size: var(--site-title-size);
   line-height: 1;
   white-space: nowrap;
   padding-top: 6px;
@@ -233,6 +238,9 @@ p, button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: var(--right-control-width);
+  min-width: var(--right-control-width);
+  justify-content: flex-end;
 }
 
 /* Make the wallet button visually smaller and fixed px sizes */
@@ -322,6 +330,8 @@ p, button, input, select, textarea {
   cursor: pointer;
   user-select: none;
   font-family: 'Press Start 2P', monospace;
+  padding: 0 12px;
+  text-align: center;
 }
 
 /* left = dark gray */
@@ -350,17 +360,139 @@ p, button, input, select, textarea {
 
 /* small responsive tweaks */
 @media (max-width: 640px) {
-  :root { --header-height: 56px; --bottom-space: 72px; }
-  .site-title { font-size: 18px; }
+  /* reduce reserve widths for small screens so centered title has room */
+  :root {
+    --header-height: 56px;
+    --bottom-space: 120px; /* increased bottom space to accommodate stacked buttons */
+    --left-control-width: 52px;
+    --right-control-width: 68px; /* make wallet area smaller on mobile */
+    --site-title-size: 16px; /* <-- smaller header font on mobile */
+  }
+
+  .site-title { font-size: var(--site-title-size); }
   .header-stats { font-size: 10px; }
-  .bottom-bar { height: 52px; }
-  .bottom-segment { font-size: 13px; }
+  .bottom-bar { height: auto; }
+  .bottom-segment { font-size: 13px; padding: 10px 12px; }
   .hamburger-btn { font-size: 1.2rem; padding: 8px; }
-  .wallet-btn-small { font-size: 10px !important; padding: 4px 6px !important; height: 28px !important; }
+  .wallet-btn-small { font-size: 10px !important; padding: 4px 6px !important; height: 28px !important; min-width: 38px !important; }
+
+  /*
+    STACK bottom buttons vertically on small screens.
+    Use column and explicit orders so Buy is above Clear.
+  */
+  .bottom-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    padding-bottom: env(safe-area-inset-bottom, 10px); /* ensure safe area */
+  }
+  .bottom-segment {
+    width: 100%;
+    flex: none;
+    justify-content: center;
+    padding: 12px 14px;
+    box-sizing: border-box;
+  }
+  .bottom-segment.bottom-right { order: 0; } /* Buy (should appear first) */
+  .bottom-segment.bottom-left { order: 1; }  /* Clear (below buy) */
+
+  /* if horizontal space is too small, shrink title font to avoid overlap */
+  .site-title {
+    font-size: 15px;
+  }
+
+  /* extreme narrow devices - very small font */
+  @media (max-width: 360px) {
+    .site-title { font-size: 14px; }
+    .header-stats { font-size: 9px; }
+  }
 }
 
 /* Make sure transforms render smoothly on mobile */
 .site-header, .bottom-bar, .sidebar {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+}
+
+/* --- Compact WalletMultiButton (only icon) on small screens ---
+   Improved + robust: hides many possible label element names, forces icon-only,
+   and adds a dark purple border to resemble the Phantom square icon.
+*/
+@media (max-width: 640px) {
+  /* Target the wallet-adapter UI button and make its textual content visually hidden */
+  .wallet-adapter-button,
+  .wallet-adapter-button.wallet-adapter-button-trigger {
+    /* ensure compact icon-only look */
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    /* add dark purple border to match site */
+    border: 2px solid rgba(153,69,255,0.95) !important;
+    background: rgba(255,255,255,0.03) !important;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.12) inset;
+    /* visually hide textual label by zeroing font-size and color (icon remains) */
+    font-size: 0 !important;
+    color: transparent !important;
+  }
+
+  /* hide common label elements inside the button (robust selection) */
+  .wallet-adapter-button .wallet-adapter-button-text,
+  .wallet-adapter-button .wallet-adapter-button-end,
+  .wallet-adapter-button .wallet-adapter-button-label,
+  .wallet-adapter-button .wallet-adapter-button-balance,
+  .wallet-adapter-button .wallet-adapter-button-name,
+  .wallet-adapter-button .wallet-adapter-button-ellipsis,
+  .wallet-adapter-button .wallet-adapter-button-children,
+  .wallet-adapter-button span:not(.wallet-adapter-button-start),
+  .wallet-adapter-button .wallet-adapter-button-trigger {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* ensure the icon (svg / start slot) is visible and sized well */
+  .wallet-adapter-button i.wallet-adapter-button-start-icon,
+  .wallet-adapter-button .wallet-adapter-button-start,
+  .wallet-adapter-button svg,
+  .wallet-adapter-button .wallet-adapter-button-icon,
+  .wallet-adapter-button img {
+    display: inline-flex !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+  }
+
+  /* slight visual tweak so it reads as Phantom-style */
+  .wallet-adapter-button {
+    background: rgba(255,255,255,0.06) !important;
+    border: 2px solid rgba(153,69,255,0.95) !important;
+  }
+
+  /* If you want it even smaller on very narrow devices */
+  @media (max-width: 360px) {
+    .wallet-adapter-button {
+      width: 36px !important;
+      height: 32px !important;
+    }
+    .wallet-adapter-button i.wallet-adapter-button-start-icon,
+    .wallet-adapter-button svg,
+    .wallet-adapter-button .wallet-adapter-button-icon,
+    .wallet-adapter-button img {
+      width: 18px !important;
+      height: 18px !important;
+    }
+  }
 }
