@@ -496,3 +496,82 @@ p, button, input, select, textarea {
     }
   }
 }
+
+/* ---------- Wallet button layout safety (prevent overflow) ---------- */
+
+/* Desktop+tablet: zorg dat label niet buiten de knop valt */
+.wallet-adapter-button {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 6px 10px !important;
+  min-width: 96px !important; /* veilige minimum breedte */
+  max-width: 220px !important; /* voorkom dat tekst links/rechts er uit klapt */
+  box-sizing: border-box !important;
+}
+
+/* label (meestal het element dat de tekst bevat) — zorg dat het kan afkappen */
+.wallet-adapter-button .wallet-adapter-button-text,
+.wallet-adapter-button .wallet-adapter-button-label,
+.wallet-adapter-button .wallet-adapter-button-name {
+  display: inline-block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Zorg dat het start-icon left staat en goed schaalt */
+.wallet-adapter-button .wallet-adapter-button-start,
+.wallet-adapter-button i.wallet-adapter-button-start-icon,
+.wallet-adapter-button img,
+.wallet-adapter-button svg {
+  flex: 0 0 auto !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+}
+
+/* Als de knop tekst te lang is: verlaag lettergrootte lichtjes om overflow te beperken */
+@media (min-width: 641px) {
+  .wallet-adapter-button .wallet-adapter-button-text {
+    font-size: 12px !important;
+    line-height: 1 !important;
+  }
+}
+
+/* Mobiel: icon-only (zoals gewenst) — dit had je al, maar iets robuuster hier: */
+@media (max-width: 640px) {
+  .wallet-adapter-button {
+    width: 40px !important;
+    height: 36px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+    font-size: 0 !important; /* make textual nodes visually vanish */
+    color: transparent !important;
+    border-radius: 8px !important;
+    border: 2px solid rgba(153,69,255,0.95) !important;
+    background: rgba(255,255,255,0.03) !important;
+  }
+
+  /* hide textual children robustly */
+  .wallet-adapter-button .wallet-adapter-button-text,
+  .wallet-adapter-button .wallet-adapter-button-end,
+  .wallet-adapter-button .wallet-adapter-button-label,
+  .wallet-adapter-button .wallet-adapter-button-name,
+  .wallet-adapter-button .wallet-adapter-button-balance {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Icon visible and sized */
+  .wallet-adapter-button img,
+  .wallet-adapter-button svg,
+  .wallet-adapter-button .wallet-adapter-button-start {
+    display: inline-flex !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
