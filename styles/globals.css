@@ -243,14 +243,39 @@ p, button, input, select, textarea {
   justify-content: flex-end;
 }
 
-/* Make the wallet button visually smaller and fixed px sizes */
+/* Wallet button tweaks */
 .wallet-btn-small {
   font-size: 11px !important;
   padding: 6px 8px !important;
-  height: 30px !important;
+  height: 34px !important;
   line-height: 1 !important;
   min-width: 64px !important;
 }
+
+/* === MOBILE: alleen Phantom icon === */
+@media (max-width: 640px) {
+  .wallet-btn-small {
+    min-width: 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 6px !important;
+    padding: 4px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: #fff !important;
+    border: 2px solid #6c2dc7 !important; /* donkerpaarse rand */
+  }
+
+  /* verberg de tekst "Connect"/"Select Wallet" */
+  .wallet-btn-small span {
+    display: none !important;
+  }
+}
+  /* forceer dat alleen het Phantom icoon zichtbaar is */
+  .wallet-btn-small .wallet-adapter-button-start-icon {
+    margin: 0 !important;
+  }
 
 /* Sidebar styles (overlay and sliding panel) */
 .sidebar-overlay {

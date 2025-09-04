@@ -458,28 +458,20 @@ export default function Home() {
       {hasLaunched && (
         <div className="page-wrapper" style={{ width: bandWidthPx, margin: '0 auto' }}>
           {/* STICKY (fixed) HEADER (we keep ref for compensation) */}
-          <header
-            ref={headerRef}
-            className={headerClass}
-            style={{ zIndex: 1600 }}
-          >
+<header ref={headerRef} className={headerClass} style={{ zIndex: 1600 }}>
             <div className="header-inner" style={{ width: '100%', maxWidth: bandWidthPx, margin: '0 auto', boxSizing: 'border-box' }}>
-              {/* left: hamburger */}
               <button
                 className="hamburger-btn"
                 aria-label="Open menu"
                 onClick={() => setSidebarOpen(true)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
               >
                 ☰
               </button>
 
-              {/* center: title + small stats */}
               <div className="header-center">
                 <h1 className="site-title">
                   {compactTitle ? 'SOL Page' : 'Million Dollar SOL Page'}
                 </h1>
-
                 <div className="header-stats" style={{ marginBottom: 6 }}>
                   {pixelsLoading ? (
                     <span className="stat">Loading sold pixels...</span>
@@ -488,9 +480,7 @@ export default function Home() {
                   ) : (
                     <span className="stat">{pixelsSoldDisplay.toLocaleString()}/1.000.000 pixels sold</span>
                   )}
-
                   <span className="stat-sep">·</span>
-
                   {currentPriceLoading ? (
                     <span className="stat">Fetching price...</span>
                   ) : currentPriceError ? (
@@ -501,10 +491,8 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* right: wallet (smaller via extra class) */}
               <div className="header-right">
-                {/* single WalletMultiButton instance; appearance is controlled by CSS on small screens */}
-                <WalletMultiButton className="menu-btn wallet-btn-small" />
+                <WalletMultiButton className="wallet-btn-small" />
               </div>
             </div>
           </header>
